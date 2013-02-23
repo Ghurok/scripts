@@ -72,7 +72,7 @@ struct MANGOS_DLL_DECL npc_aged_dying_ancient_kodoAI : public ScriptedAI
             if (m_creature->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP))
                 return;
 
-            if (m_creature->IsWithinDistInMap(pWho, 10.0f))
+            if (m_creature->IsWithinDistInMap(pWho, 25.0f))
             {
                 switch (urand(0, 2))
                 {
@@ -83,6 +83,7 @@ struct MANGOS_DLL_DECL npc_aged_dying_ancient_kodoAI : public ScriptedAI
 
                 // spell have no implemented effect (dummy), so useful to notify spellHit
                 m_creature->CastSpell(m_creature, SPELL_KODO_KOMBO_GOSSIP, true);
+                m_creature->GetMotionMaster()->MoveIdle();
             }
         }
     }
@@ -105,7 +106,7 @@ struct MANGOS_DLL_DECL npc_aged_dying_ancient_kodoAI : public ScriptedAI
             {
                 Reset();
                 m_creature->SetDeathState(JUST_DIED);
-                m_creature->Respawn();
+                m_creature->ForcedDespawn();
                 return;
             }
         }
@@ -129,22 +130,24 @@ bool EffectDummyCreature_npc_aged_dying_ancient_kodo(Unit* pCaster, uint32 spell
     if (spellId == SPELL_KODO_KOMBO_ITEM && effIndex == EFFECT_INDEX_0)
     {
         // no effect if player/creature already have aura from spells
-        if (pCaster->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) || pCreatureTarget->HasAura(SPELL_KODO_KOMBO_DESPAWN_BUFF))
+        if (pCaster->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) || pCreatureTarget->getFaction() == 35)
             return true;
 
         if (pCreatureTarget->GetEntry() == NPC_AGED_KODO ||
-                pCreatureTarget->GetEntry() == NPC_DYING_KODO ||
-                pCreatureTarget->GetEntry() == NPC_ANCIENT_KODO)
+            pCreatureTarget->GetEntry() == NPC_DYING_KODO ||
+            pCreatureTarget->GetEntry() == NPC_ANCIENT_KODO)
         {
             pCaster->CastSpell(pCaster, SPELL_KODO_KOMBO_PLAYER_BUFF, true);
 
             pCreatureTarget->UpdateEntry(NPC_TAMED_KODO);
-            pCreatureTarget->CastSpell(pCreatureTarget, SPELL_KODO_KOMBO_DESPAWN_BUFF, false);
+            //pCreatureTarget->CastSpell(pCreatureTarget,SPELL_KODO_KOMBO_DESPAWN_BUFF,false);
 
             if (pCreatureTarget->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
                 pCreatureTarget->GetMotionMaster()->MoveIdle();
 
-            pCreatureTarget->GetMotionMaster()->MoveFollow(pCaster, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
+            pCreatureTarget->AI()->EnterEvadeMode();
+            pCreatureTarget->GetMotionMaster()->Clear();
+            pCreatureTarget->GetMotionMaster()->MoveFollow(pCaster, 3.0f, PET_FOLLOW_ANGLE);
         }
 
         // always return true when we are handling this spell and effect
@@ -155,16 +158,16 @@ bool EffectDummyCreature_npc_aged_dying_ancient_kodo(Unit* pCaster, uint32 spell
 
 bool GossipHello_npc_aged_dying_ancient_kodo(Player* pPlayer, Creature* pCreature)
 {
-    if (pPlayer->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) && pCreature->HasAura(SPELL_KODO_KOMBO_DESPAWN_BUFF))
+    if (pPlayer->HasAura(SPELL_KODO_KOMBO_PLAYER_BUFF) && pCreature->getFaction() == 35)
     {
         // the expected quest objective
         pPlayer->TalkedToCreature(pCreature->GetEntry(), pCreature->GetObjectGuid());
 
         pPlayer->RemoveAurasDueToSpell(SPELL_KODO_KOMBO_PLAYER_BUFF);
-        pCreature->GetMotionMaster()->MoveIdle();
     }
 
-    pPlayer->SEND_GOSSIP_MENU(pPlayer->GetGossipTextId(pCreature), pCreature->GetObjectGuid());
+    // TODO: for Tamed Kodo use the gossip_menu_id 3650 and textid 4449 instead
+    pPlayer->SEND_GOSSIP_MENU(4449, pCreature->GetObjectGuid());
     return true;
 }
 
